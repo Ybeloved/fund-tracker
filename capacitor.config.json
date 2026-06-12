@@ -1,0 +1,20 @@
+{
+  "appId": "com.fundtracker.app",
+  "appName": "基金估值看板",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0c0e14"
+    },
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "launchShowDuration": 1500,
+      "backgroundColor": "#0c0e14",
+      "showSpinner": false
+    }
+  }
+}

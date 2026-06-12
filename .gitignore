@@ -1,0 +1,9 @@
+node_modules/
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-splash/
+*.apk
+*.aab
+.DS_Store
+*.local

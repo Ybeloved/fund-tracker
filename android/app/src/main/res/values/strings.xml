@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">基金估值看板</string>
+    <string name="title_activity_main">基金估值看板</string>
+    <string name="package_name">com.fundtracker.app</string>
+    <string name="custom_url_scheme">com.fundtracker.app</string>
+</resources>

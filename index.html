@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基金估值看板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0c0e14;
+            --bg-card: #141620;
+            --bg-hover: #1a1d2e;
+            --bg-input: #1a1d2e;
+            --border: #1e2235;
+            --text: #e2e4ea;
+            --text-2: #8b8fa3;
+            --text-3: #5a5e72;
+            --up: #ef4444;
+            --up-soft: #fca5a5;
+            --up-bg: rgba(239,68,68,.08);
+            --down: #22c55e;
+            --down-soft: #86efac;
+            --down-bg: rgba(34,197,94,.08);
+            --accent: #6366f1;
+            --accent-2: #818cf8;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Layout ── */
+        .app { max-width: 1280px; margin: 0 auto; padding: 24px 20px 60px; }
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-left h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+        .header-left .tag {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: var(--accent);
+            color: #fff;
+            font-weight: 500;
+        }
+        .header-right { display: flex; align-items: center; gap: 16px; }
+        .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); }
+        .status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--down); }
+        .btn-refresh {
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 500;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-2);
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .btn-refresh:hover { border-color: var(--accent); color: var(--text); }
+
+        /* ── Stats Bar ── */
+        .stats {
+            display: flex;
+            gap: 1px;
+            background: var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .stat {
+            flex: 1;
+            background: var(--bg-card);
+            padding: 16px 20px;
+            min-width: 0;
+        }
+        .stat:first-child { border-radius: 10px 0 0 10px; }
+        .stat:last-child { border-radius: 0 10px 10px 0; }
+        .stat-label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+        .stat-value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .stat-sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+        /* ── Table ── */
+        .table-wrap {
+            background: var(--bg-card);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            padding: 12px 16px;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-3);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+            position: sticky;
+            top: 0;
+        }
+        thead th:last-child { text-align: right; }
+        tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background .15s;
+        }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: var(--bg-hover); }
+        td {
+            padding: 14px 16px;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+        td:last-child { text-align: right; }
+
+        .fund-code {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            color: var(--accent-2);
+            font-weight: 500;
+        }
+        .fund-name {
+            font-weight: 500;
+            font-size: 13px;
+            margin-top: 2px;
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .nav-cell {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            color: var(--text-2);
+        }
+        .est-cell {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .change-cell {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .change-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 72px;
+        }
+        .change-badge.up { background: var(--up-bg); color: var(--up); }
+        .change-badge.down { background: var(--down-bg); color: var(--down); }
+        .change-badge.flat { background: var(--bg); color: var(--text-3); }
+
+        .bar-cell { width: 100px; }
+        .mini-bar {
+            height: 4px;
+            background: var(--bg);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .mini-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width .4s ease;
+        }
+        .mini-bar-fill.up { background: var(--up); }
+        .mini-bar-fill.down { background: var(--down); }
+
+        .time-cell {
+            font-size: 11px;
+            color: var(--text-3);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        .action-cell { width: 40px; }
+        .btn-del {
+            background: none;
+            border: none;
+            color: var(--text-3);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all .15s;
+        }
+        tbody tr:hover .btn-del { opacity: 1; }
+        .btn-del:hover { background: var(--up-bg); color: var(--up); }
+
+        /* ── Add Form ── */
+        .add-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .add-card h3 {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            color: var(--text-2);
+        }
+        .add-row { display: flex; gap: 10px; }
+        .add-row input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+            outline: none;
+            transition: border-color .15s;
+        }
+        .add-row input:focus { border-color: var(--accent); }
+        .add-row input::placeholder { color: var(--text-3); }
+        .btn-add {
+            padding: 10px 24px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .15s;
+            white-space: nowrap;
+        }
+        .btn-add:hover { background: var(--accent-2); }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            padding: 24px 0 0;
+            font-size: 11px;
+            color: var(--text-3);
+        }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.4);
+            transition: transform .3s cubic-bezier(.4,0,.2,1);
+            z-index: 999;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.ok { border-left: 3px solid var(--down); }
+        .toast.err { border-left: 3px solid var(--up); }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .app { padding: 16px 12px 40px; }
+            .header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .stats { flex-direction: column; }
+            .stat:first-child { border-radius: 10px 10px 0 0; }
+            .stat:last-child { border-radius: 0 0 10px 10px; }
+            .table-wrap { overflow-x: auto; }
+            table { min-width: 700px; }
+            .add-row { flex-direction: column; }
+        }
+
+        /* ── Skeleton ── */
+        .skeleton { display: flex; flex-direction: column; gap: 1px; }
+        .sk-row {
+            height: 48px;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 16px;
+        }
+        .sk-bar {
+            height: 10px;
+            background: var(--border);
+            border-radius: 4px;
+            animation: sk 1.2s ease-in-out infinite;
+        }
+        @keyframes sk { 0%,100%{ opacity:.4 } 50%{ opacity:1 } }
+
+        /* ── Empty ── */
+        .empty {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-3);
+        }
+        .empty-icon { font-size: 32px; margin-bottom: 12px; }
+        .empty p { font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <h1>基金估值看板</h1>
+            <span class="tag">LIVE</span>
+        </div>
+        <div class="header-right">
+            <div class="status"><span class="dot"></span><span id="lastTime">等待数据...</span></div>
+            <button class="btn-refresh" onclick="refresh()">刷新</button>
+        </div>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats" id="stats">
+        <div class="stat"><div class="stat-label">自选基金</div><div class="stat-value" id="sTotal">--</div><div class="stat-sub">只</div></div>
+        <div class="stat"><div class="stat-label">上涨</div><div class="stat-value" id="sUp" style="color:var(--up)">--</div><div class="stat-sub">只</div></div>
+        <div class="stat"><div class="stat-label">下跌</div><div class="stat-value" id="sDown" style="color:var(--down)">--</div><div class="stat-sub">只</div></div>
+        <div class="stat"><div class="stat-label">平均涨跌</div><div class="stat-value" id="sAvg">--</div><div class="stat-sub">估算</div></div>
+        <div class="stat"><div class="stat-label">最大涨幅</div><div class="stat-value" id="sMaxUp" style="color:var(--up)">--</div><div class="stat-sub" id="sMaxUpName">--</div></div>
+        <div class="stat"><div class="stat-label">最大跌幅</div><div class="stat-value" id="sMaxDown" style="color:var(--down)">--</div><div class="stat-sub" id="sMaxDownName">--</div></div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>基金</th>
+                    <th>上日净值</th>
+                    <th>估算净值</th>
+                    <th>估算涨跌</th>
+                    <th>涨跌幅度</th>
+                    <th>估值时间</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+
+    <!-- Add -->
+    <div class="add-card">
+        <h3>添加自选基金</h3>
+        <form class="add-row" onsubmit="addFund(event)">
+            <input id="inCode" type="text" placeholder="基金代码 (6位数字)" maxlength="6" required>
+            <input id="inName" type="text" placeholder="名称 (可选，自动获取)">
+            <button class="btn-add" type="submit">添加</button>
+        </form>
+    </div>
+
+    <div class="footer">数据来源：天天基金网 · 估值仅供参考，以实际净值为准 · 每30秒自动刷新</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── State ── */
+let list = JSON.parse(localStorage.getItem('fw')) || [
+    {c:'000001',n:'华夏成长混合'},
+    {c:'110011',n:'易方达中小盘混合'},
+    {c:'161725',n:'招商中证白酒指数'},
+    {c:'003834',n:'华夏能源革新股票'},
+    {c:'012414',n:'东方红启东三年持有混合'},
+    {c:'002207',n:'前海开源金银珠宝混合C'}
+];
+let data = {};
+let timer = null;
+
+const $ = id => document.getElementById(id);
+const save = () => localStorage.setItem('fw', JSON.stringify(list));
+
+/* ── Toast ── */
+function toast(msg, ok=true) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast ' + (ok?'ok':'err') + ' show';
+    clearTimeout(t._t);
+    t._t = setTimeout(()=> t.classList.remove('show'), 2500);
+}
+
+/* ── Fetch (JSONP) ── */
+function fetchFund(code) {
+    return new Promise(resolve => {
+        const cb = '_cb'+code+Date.now();
+        const s = document.createElement('script');
+        window[cb] = d => { delete window[cb]; s.remove(); resolve(d); };
+        s.onerror = ()=> { delete window[cb]; s.remove(); resolve(null); };
+        s.src = `https://fundgz.1234567.com.cn/js/${code}.js?rt=${Date.now()}&callback=${cb}`;
+        document.head.appendChild(s);
+    });
+}
+
+async function refresh() {
+    const promises = list.map(f => fetchFund(f.c));
+    const results = await Promise.all(promises);
+    data = {};
+    results.forEach((d,i) => {
+        if (d) {
+            data[d.fundcode] = {
+                code: d.fundcode,
+                name: list[i].n || d.name,
+                nav: +d.dwjz,
+                est: +d.gsz,
+                chg: +d.gszzl,
+                navDate: d.jzrq,
+                estTime: d.gztime
+            };
+        }
+    });
+    render();
+    $('lastTime').textContent = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+/* ── Render ── */
+function render() {
+    const tbody = $('tbody');
+    const vals = Object.values(data);
+
+    if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">📭</div><p>暂无自选基金，请在下方添加</p></div></td></tr>`;
+        updateStats([]);
+        return;
+    }
+
+    tbody.innerHTML = list.map((f,i) => {
+        const d = data[f.c];
+        if (!d) return `<tr><td colspan="7" style="color:var(--text-3);padding:16px">${f.c} 加载中...</td></tr>`;
+
+        const cls = d.chg > 0.005 ? 'up' : d.chg < -0.005 ? 'down' : 'flat';
+        const sign = d.chg > 0 ? '+' : '';
+        const pct = Math.min(Math.abs(d.chg)/5*100, 100);
+        const t = d.estTime ? d.estTime.split(' ')[1]||'' : '';
+
+        return `<tr>
+            <td>
+                <div class="fund-code">${d.code}</div>
+                <div class="fund-name" title="${d.name}">${d.name}</div>
+            </td>
+            <td class="nav-cell">${d.nav.toFixed(4)}<div style="font-size:11px;color:var(--text-3);margin-top:2px">${d.navDate}</div></td>
+            <td class="est-cell" style="color:var(--${cls})">${d.est.toFixed(4)}</td>
+            <td><span class="change-badge ${cls}">${sign}${d.chg.toFixed(2)}%</span></td>
+            <td class="bar-cell"><div class="mini-bar"><div class="mini-bar-fill ${cls}" style="width:${Math.max(pct,2)}%"></div></div></td>
+            <td class="time-cell">${t}</td>
+            <td class="action-cell"><button class="btn-del" onclick="delFund('${d.code}')" title="删除">✕</button></td>
+        </tr>`;
+    }).join('');
+
+    updateStats(vals);
+}
+
+function updateStats(vals) {
+    const total = list.length;
+    const up = vals.filter(d=>d.chg>0.005).length;
+    const down = vals.filter(d=>d.chg<-0.005).length;
+    const avg = vals.length ? vals.reduce((s,d)=>s+d.chg,0)/vals.length : 0;
+    const maxUp = vals.length ? vals.reduce((a,d)=>d.chg>a.chg?d:a, vals[0]) : null;
+    const maxDown = vals.length ? vals.reduce((a,d)=>d.chg<a.chg?d:a, vals[0]) : null;
+
+    $('sTotal').textContent = total;
+    $('sUp').textContent = up;
+    $('sDown').textContent = down;
+
+    const avgEl = $('sAvg');
+    avgEl.textContent = (avg>0?'+':'') + avg.toFixed(2) + '%';
+    avgEl.style.color = avg>0?'var(--up)':avg<0?'var(--down)':'var(--text-2)';
+
+    if (maxUp && maxUp.chg>0) {
+        $('sMaxUp').textContent = '+' + maxUp.chg.toFixed(2) + '%';
+        $('sMaxUpName').textContent = maxUp.name.substring(0,8);
+    } else {
+        $('sMaxUp').textContent = '--';
+        $('sMaxUpName').textContent = '--';
+    }
+
+    if (maxDown && maxDown.chg<0) {
+        $('sMaxDown').textContent = maxDown.chg.toFixed(2) + '%';
+        $('sMaxDownName').textContent = maxDown.name.substring(0,8);
+    } else {
+        $('sMaxDown').textContent = '--';
+        $('sMaxDownName').textContent = '--';
+    }
+}
+
+/* ── Add / Delete ── */
+function addFund(e) {
+    e.preventDefault();
+    const c = $('inCode').value.trim();
+    const n = $('inName').value.trim();
+    if (!/^\d{6}$/.test(c)) { toast('请输入正确的6位基金代码',false); return; }
+    if (list.some(f=>f.c===c)) { toast('该基金已在列表中',false); return; }
+    list.push({c,n});
+    save();
+    $('inCode').value = '';
+    $('inName').value = '';
+    toast('已添加 '+c);
+    refresh();
+}
+
+function delFund(code) {
+    if (!confirm('确认删除 '+code+' ?')) return;
+    list = list.filter(f=>f.c!==code);
+    delete data[code];
+    save();
+    toast('已删除 '+code);
+    render();
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', () => {
+    refresh();
+    timer = setInterval(refresh, 30000);
+});
+window.addEventListener('beforeunload', ()=> timer && clearInterval(timer));
+</script>
+</body>
+</html>
